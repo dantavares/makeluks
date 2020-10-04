@@ -7,6 +7,7 @@ ciph=twofish
 #Define o sistema de arquivo a ser usado
 form=ext2
 
+#Rótulo padrão, caso não informado
 label=pdcrypt
 
 #####################################################################################
@@ -17,14 +18,6 @@ checksudo(){
     then
         echo "Parece que tem algo errado com a senha do usuário"
         echo "Tente novamente quando tiver certeza sobre isso"
-        exit
-    fi
-}
-
-checkfile(){
-    if [[ $(blkid -s TYPE -o value $pcrypt) != "crypto_LUKS" ]]
-    then
-        echo "Não é um arquivo de criptografia LUKS"
         exit
     fi
 }
@@ -56,7 +49,8 @@ crypt(){
     sleep 5
     sudo cryptsetup luksClose pdcrypt
     clear
-    echo Tudo pronto! Reinsira o dispositivo para começar a usar
+    echo "Tudo pronto! Para montar e desmontar, especifique o dispositivo ou arquivo como parâmetro"
+    echo "Ex: ./mk-luks.sh /dev/sdc1 ou ./mk-luks.sh teste.luks"
     exit
 }
 
@@ -66,9 +60,9 @@ makedrive(){
     read -p "Entre com o dispositivo a ser formatado: /dev/" pcrypt
     pcrypt=/dev/$pcrypt
     clear
-    echo "Dispositivo selecionado: " $pcrypt
-    echo "Cifra a ser usada: " $ciph
-    echo "Sistema de arquivo a ser usado: " $form
+    echo "Dispositivo selecionado: "$pcrypt
+    echo "Cifra a ser usada: "$ciph
+    echo "Sistema de arquivo a ser usado: "$form
 
     while true; do
         read -p "Tem certeza que deseja continuar? Dados poderão ser perdidos S ou N: " sn
@@ -88,18 +82,13 @@ makefile(){
     read -p "Defina o tamanho do arquivo Ex: 100M, 1G : " size
     clear
     echo "Nome do arquivo: "$pcrypt
-    echo "Tamanho do arquivo: " $size
-    echo "Cifra a ser usada: " $ciph
-    echo "Sistema de arquivo a ser usado: " $form
+    echo "Tamanho do arquivo: "$size
+    echo "Cifra a ser usada: "$ciph
+    echo "Sistema de arquivo a ser usado: "$form
     echo "Aguarde..."
     fallocate -l $size /tmp/$pcrypt
     mv /tmp/$pcrypt $(dirname "$SCRIPT")/
     crypt   
-}
-
-decrypt(){
-    checksudo
-    sudo cryptsetup luksOpen "$pcrypt" $UUID
 }
 
 if [[ $1 == "" ]]
@@ -114,9 +103,8 @@ then
     done
 else
     pcrypt=$1
-    if [ -f $pcrypt ] 
+    if [[ -f $pcrypt || -e $pcrypt ]] 
     then
-        checkfile
         UUID=$(blkid -s UUID -o value "$pcrypt")
         if [ -e /dev/mapper/$UUID ] 
         then
@@ -124,12 +112,18 @@ else
             read -p "Enter para continuar ou Control+C para cancelar"
             checksudo
             sudo umount /dev/mapper/$UUID
+            sudo rm -r /mnt/$UUID
             sudo cryptsetup luksClose $UUID
             exit            
         else
-            decrypt
+            checksudo
+            sudo cryptsetup luksOpen "$pcrypt" $UUID
+            sudo mkdir /mnt/$UUID
+            sudo mount /dev/mapper/$UUID /mnt/$UUID
+            sudo chmod 777 /mnt/$UUID
         fi
     else
+        echo "Houve um erro"
         exit
     fi
 fi
