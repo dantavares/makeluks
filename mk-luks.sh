@@ -22,6 +22,14 @@ checksudo(){
     fi
 }
 
+checkfile(){
+    if [ !$(cryptsetup isLuks $pcrypt) ]
+    then
+        echo "Não é um arquivo ou dispositivo LUKS"
+        exit    
+    fi
+}
+
 crypt(){
     pwf=$(mktemp) pwf2=$(mktemp)
     chmod 600 "$pwf" "$pwf2"
@@ -43,7 +51,7 @@ crypt(){
     read -p "Defina o nome do volume: " label
     checksudo
     echo "Iniciando o processo, aguarde..." ; 
-    sudo cryptsetup luksFormat -q -c "$ciph"-xts-plain64 -s 512 -h sha512 -i 5000 -y "$pcrypt" --key-file "$pwf" --use-random
+    sudo cryptsetup luksFormat -q -c "$ciph"-xts-plain64 -s 512 -h sha512 -i 5000 -y "$pcrypt" --key-file "$pwf" --type luks2
     sudo cryptsetup luksOpen "$pcrypt" pdcrypt --key-file "$pwf"
     sudo mkfs.$form -L $label /dev/mapper/pdcrypt
     sleep 5
@@ -105,7 +113,16 @@ else
     pcrypt=$1
     if [[ -f $pcrypt || -e $pcrypt ]] 
     then
-        UUID=$(blkid -s UUID -o value "$pcrypt")
+        cryptsetup isLuks $pcrypt        
+        if [ $? == 0 ]
+        then
+            UUID=$(cryptsetup luksUUID $pcrypt)            
+        else        
+            echo $(cryptsetup isLuks $pcrypt)            
+            echo "Não é um arquivo ou dispositivo LUKS"
+            exit            
+        fi        
+
         if [ -e /dev/mapper/$UUID ] 
         then
             echo "Pronto para desmontar "$pcrypt
