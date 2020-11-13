@@ -31,32 +31,39 @@ checkfile(){
 }
 
 crypt(){
-    pwf=$(mktemp) pwf2=$(mktemp)
-    chmod 600 "$pwf" "$pwf2"
-    while [ ! -s "$pwf" ]
+    pass=$(mktemp)
+    chmod 600 "$pass"
+    cont=true
+    while $cont
     do
-        /lib/cryptsetup/askpass "Defina a senha de criptografia:" >"$pwf"
+        read -s -p "Defina a senha de criptografia: " pwf
         echo
-        if [ -s "$pwf" ]
+        if [ $pwf ]
         then
-            /lib/cryptsetup/askpass "Confirme a senha:" >"$pwf2"
-            echo
-            diff -q --label $'\b\b\b\b\b\b\b\b primeira' "$pwf" \
-				--label "segunda senha" "$pwf2" || shred -u "$pwf"
-            shred -u "$pwf2"
+            read -s -p "Confirme a senha: " pwf2
+            if [ $pwf == $pwf2 ]
+            then
+                echo -n $pwf > $pass
+                cont=false
+                echo
+            else
+                echo
+                echo "Senhas não conferem, tente novamente"
+            fi
         else
-            echo -e "Senha em branco nao!\n"
+            echo
+            echo -e "Senha em branco não!"
         fi
     done
     read -p "Defina o nome do volume: " label
     checksudo
     echo "Iniciando o processo, aguarde..." ; 
-    sudo cryptsetup luksFormat -q -c "$ciph"-xts-plain64 -s 512 -h sha512 -i 5000 -y "$pcrypt" --key-file "$pwf" --type luks2
-    sudo cryptsetup luksOpen "$pcrypt" pdcrypt --key-file "$pwf"
+    sudo cryptsetup luksFormat -q -c "$ciph"-xts-plain64 -s 512 -h sha512 -i 5000 -y "$pcrypt" --key-file "$pass" --type luks2
+    sudo cryptsetup luksOpen "$pcrypt" pdcrypt --key-file "$pass"
     sudo mkfs.$form -L $label /dev/mapper/pdcrypt
     sleep 5
     sudo cryptsetup luksClose pdcrypt
-    clear
+    rm "$pass"
     echo "Tudo pronto! Para montar e desmontar, especifique o dispositivo ou arquivo como parâmetro"
     echo "Ex: ./mk-luks.sh /dev/sdc1 ou ./mk-luks.sh teste.luks"
     exit
@@ -94,8 +101,8 @@ makefile(){
     echo "Cifra a ser usada: "$ciph
     echo "Sistema de arquivo a ser usado: "$form
     echo "Aguarde..."
-    fallocate -l $size /tmp/$pcrypt
-    mv /tmp/$pcrypt $(dirname "$SCRIPT")/
+    fallocate -l $size ~/$pcrypt
+    mv ~/$pcrypt $(dirname "$SCRIPT")/
     crypt   
 }
 
