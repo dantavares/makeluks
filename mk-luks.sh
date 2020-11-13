@@ -43,7 +43,7 @@ crypt(){
             read -s -p "Confirme a senha: " pwf2
             if [ $pwf == $pwf2 ]
             then
-                echo -n $pwf > $pass
+                echo -n $pwf > "$pass"
                 cont=false
                 echo
             else
@@ -52,7 +52,7 @@ crypt(){
             fi
         else
             echo
-            echo -e "Senha em branco não!"
+            echo "Senha em branco não!"
         fi
     done
     read -p "Defina o nome do volume: " label
