@@ -22,14 +22,6 @@ checksudo(){
     fi
 }
 
-checkfile(){
-    if [ !$(cryptsetup isLuks $pcrypt) ]
-    then
-        echo "Não é um arquivo ou dispositivo LUKS"
-        exit    
-    fi
-}
-
 crypt(){
     pass=$(mktemp)
     chmod 600 "$pass"
@@ -66,6 +58,7 @@ crypt(){
     rm "$pass"
     echo "Tudo pronto! Para montar e desmontar, especifique o dispositivo ou arquivo como parâmetro"
     echo "Ex: ./mk-luks.sh /dev/sdc1 ou ./mk-luks.sh teste.luks"
+    echo "Você pode associar arquivos *.luks para ser aberto com este script, mas marque a opção abrir no console"
     exit
 }
 
@@ -125,7 +118,6 @@ else
         then
             UUID=$(cryptsetup luksUUID $pcrypt)            
         else        
-            echo $(cryptsetup isLuks $pcrypt)            
             echo "Não é um arquivo ou dispositivo LUKS"
             exit            
         fi        
